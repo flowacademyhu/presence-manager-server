@@ -1,6 +1,6 @@
 const express = require('express');
 
 //Read
-presences.get();
+presences.get('/getall', (req, res));
 
 module.exports = presences;
