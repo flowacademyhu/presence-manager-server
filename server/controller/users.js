@@ -67,8 +67,8 @@ users.get('/name', authenticate, (req, res) => {
 
 //Read actuals (lvl:1)
 users.get('/actuals', (req, res) => {
-  User.find({ 'isIn': true }).then((users) => {
-    let actualusers = users.map((user) => { return user.username; });
+  User.find({'isIn': true}).then((users) => {
+    let actualusers = users.map((user) => { return user.name; });
     res.send({ actualusers });
   }, (e) => {
     res.status(400).send(e);
