@@ -52,7 +52,7 @@ const UserSchema = new mongoose.Schema({
 UserSchema.methods.generateAuthToken = function () {
     let user = this;
     let access = 'auth';
-    	return jwt.sign({_id: user._id.toHexString(), access}, process.env.JWT_SECRET, {expiresIn: 7200}).toString();
+    return jwt.sign({_id: user._id.toHexString(), access}, process.env.JWT_SECRET, {expiresIn: 7200}).toString();
 };
 
 UserSchema.statics.findByToken = function (token) {
