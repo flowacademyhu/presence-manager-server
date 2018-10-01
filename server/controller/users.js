@@ -9,7 +9,20 @@ const {User} = require('../models/user');
 //Lvl -> accessLevel Enum:[Admin:0, OfficeAdmin: 1, User:2]
 
 //Create (lvl:0)
-users.post('/', (req, res));
+users.post('/', hashPassword, (req, res) => {
+    let body = _.pick(req.body, ['name','email', 'password', 'contractId', 'accessLevel', 'group']);
+    let user = new User(body);
+
+    user.save().then(() => {
+        return user.generateAuthToken();
+    }).then((token) => {
+        res.header('x-auth', token).send({
+            idToken: token,
+            expiresIn: 7200,
+            accessLevel: user.accessLevel
+        });
+    }).catch(e => res.status(400).send(e));
+});
 
 //Read me (lvl:2)
 users.get('/me', (req, res));
