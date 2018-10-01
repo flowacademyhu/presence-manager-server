@@ -21,7 +21,14 @@ users.post('/login', (req, res));
 users.get('/all', (req, res));
 
 //Read actuals (lvl:1)
-users.get('/actuals', (req, res));
+users.get('/actuals', (req, res) => {
+  User.find({'isIn': true}).then((users) => {
+    let actualusers = users.map((user) => { return user.username; });
+    res.send({ actualusers });
+  }, (e) => {
+    res.status(400).send(e);
+  });
+});
 
 //Update user (lvl:2)
 users.patch('/me', (req, res));
