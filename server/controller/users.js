@@ -13,7 +13,7 @@ users.post('/', hashRandomPassword, (req, res) => {
     let body = _.pick(req.body, ['name','email', 'password', 'contractId', 'accessLevel', 'group']);
     let user = new User(body);
     let unHashedRandomPassword = _.pick(req.body, ['unHashedRandomPassword']);
-    sendMail(unHashedRandomPassword);
+    sendMail(unHashedRandomPassword, body.email);
 
     user.save().then(() => {
         return user.generateAuthToken();
@@ -103,14 +103,14 @@ users.delete('/:id', authenticate, (req, res) => {
   });
 });
 
-sendMail = function (randomPassword) {
-    var api_key = 'c54eb639082044af33f5d7955c5ceb18-c8e745ec-6e0a36db';
-    var domain = 'sandboxf41e5913ec5d4bfc93fd4096957187aa.mailgun.org';
+sendMail = function (randomPassword, email) {
+    var api_key = process.env.API_KEY;
+    var domain = process.env.DOMAIN;
     var mailgun = require('mailgun-js')({apiKey: api_key, domain: domain});
 
     var data = {
-        from: 'Presence Manager Server <kosoczky.adam@gmail.com>',
-        to: 'kosoczky.adam@gmail.com',
+        from: 'Presence Manager Server <flowpresencemanager@gmail.com>',
+        to: email,
         subject: 'Flow Academy Regisztrációs Jelszó',
         text: `Kedves Regisztráló! Első belépéshez való belépési kódod: ${randomPassword}`
     };
