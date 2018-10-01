@@ -6,7 +6,6 @@ const users = express.Router({ mergeParams: true });
 const {User} = require('../models/user');
 const {hashRandomPassword} = require('../middleware/hash_randomPassword');
 
-
 //Lvl -> accessLevel Enum:[Admin:0, OfficeAdmin: 1, User:2]
 
 //Create (lvl:0)
@@ -32,6 +31,25 @@ users.get('/me', (req, res));
 
 //Login (lvl:2)
 users.post('/login', (req, res));
+
+//Read a user (lvl:0)
+users.get('/:id', authenticate, (req, res) => {
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+
+  let id = req.params.id;
+
+  if (!ObjectID.isValid(id)) {
+    return res.status(404).send();
+  }
+
+  User.findById(id, (e, user) => {
+    if (e) return res.status(500).send(e);
+    return res.status(200).send(user)
+  });
+});
+
 
 //Read all (lvl:0)
 users.get('/name', authenticate, (req, res) => {
