@@ -9,18 +9,18 @@ const UserSchema = new mongoose.Schema({
 		required: true,
 		minlength: 4
 	},
-	email:{
-		type:String,
+	email: {
+		type: String,
 		required: true,
 		trim: true,
 		minlength: 6,
-		unique: true,	
-		validate:{
-			  validator: validator.isEmail,
-			  message: '{VALUE} is not a valid email',
-			  isAsync: false
-			}
-		},
+		unique: true,
+		validate: {
+			validator: validator.isEmail,
+			message: '{VALUE} is not a valid email',
+			isAsync: false
+		}
+	},
 	password: {
 		type: String,
 		required: true,
@@ -46,28 +46,32 @@ const UserSchema = new mongoose.Schema({
 		type: Boolean,
 		default: false
 	},
+	deletedAt: {
+		type: Date,
+		default: null
+	},
 	Logs: [String]
 });
 
 UserSchema.methods.generateAuthToken = function () {
-    let user = this;
-    let access = 'auth';
-    	return jwt.sign({_id: user._id.toHexString(), access}, process.env.JWT_SECRET, {expiresIn: 7200}).toString();
+	let user = this;
+	let access = 'auth';
+	return jwt.sign({ _id: user._id.toHexString(), access }, process.env.JWT_SECRET, { expiresIn: 7200 }).toString();
 };
 
 UserSchema.statics.findByToken = function (token) {
-    let User = this;
-    let decoded;
+	let User = this;
+	let decoded;
 
-    try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (e) {
-        return Promise.reject();
-    }
+	try {
+		decoded = jwt.verify(token, process.env.JWT_SECRET);
+	} catch (e) {
+		return Promise.reject();
+	}
 
-    return User.findOne({
-        '_id': decoded._id
-    });
+	return User.findOne({
+		'_id': decoded._id
+	});
 };
 
 let User = mongoose.model('User', UserSchema);
