@@ -18,7 +18,18 @@ users.get('/me', (req, res));
 users.post('/login', (req, res));
 
 //Read all (lvl:0)
-users.get('/all', (req, res));
+users.get('/name', authenticate, (req, res) => {
+	if(req.user.accessLevel !== 0) {
+		return res.status(401).send();
+	}
+	user.find ({
+		_name: req.user._name,
+		_id: req.user._id 
+	})
+	.then(users => res.send(users))
+	.catch(e => res.status(400).send(e));
+});
+
 
 //Read actuals (lvl:1)
 users.get('/actuals', (req, res) => {
