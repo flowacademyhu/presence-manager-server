@@ -3,10 +3,9 @@ const validator = require('validator');
 const jwt = require('jsonwebtoken');
 
 const UserSchema = new mongoose.Schema({
-	username: {
+	name: {
 		type: String,
 		trim: true,
-		unique: true,
 		required: true,
 		minlength: 4
 	},
@@ -38,6 +37,10 @@ const UserSchema = new mongoose.Schema({
 		min: 0,
 		max: 2,
 		default: 2
+	},
+	group: {
+		type: String,
+		enum: ['Mentor', 'TeamGamma', 'TeamDelta', 'Visitor']
 	},
 	isIn: {
 		type: Boolean,
