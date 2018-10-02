@@ -3,8 +3,8 @@ const _ = require('lodash');
 
 const users = express.Router({ mergeParams: true });
 
-const { User } = require('../models/user');
-const { hashRandomPassword } = require('../middleware/hash_randomPassword');
+const {User} = require('../models/user');
+const {hashRandomPassword, authenticate, hashPassword} = require('../middleware/hash_randomPassword');
 
 //Lvl -> accessLevel Enum:[Admin:0, OfficeAdmin: 1, User:2]
 
@@ -85,6 +85,25 @@ users.get('/actuals', authenticate, (req, res) => {
 
 //Update user (lvl:2)
 users.patch('/me', (req, res));
+
+//Update user (lvl:0)
+users.patch('/users', [authenticate, hashPassword], (req, res) => {
+    let body = _.pick(req.body, ['name','email', 'password', 'contractId', 'accessLevel', 'group']);
+
+    User.findOneAndUpdate({
+        _id: req.body._id
+    }, {$set: body}, {new: true, runValidators: true}).then(user => {
+        if (!user) {
+            return res.status(404).send();
+        }
+
+        res.status(200).send({user});
+    }).catch(err => {
+        if (err) {
+            res.status(400).send();
+        }
+    });
+});
 
 //Delete group (lvl:0)
 users.delete('/users/group/:id', (req, res) => {
