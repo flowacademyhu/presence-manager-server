@@ -30,7 +30,21 @@ users.post('/', hashRandomPassword, (req, res) => {
 users.get('/me', (req, res));
 
 //Login (lvl:2)
-users.post('/login', (req, res));
+users.post('/login', (req, res) => {
+    let body = _.pick(req.body, ['email', 'password']);
+
+    User.findByCredentials(body.email, body.password).then(user => {
+        return user.generateAuthToken().then(token => {
+            res.header('x-auth', token).send({
+                idToken: token,
+                expiresIn: 7200,
+                accessLevel: user.accessLevel
+            });
+        });
+    }).catch(err => {
+        res.status(400).send(err);
+    });
+});
 
 //Read a user (lvl:0)
 users.get('/:id', authenticate, (req, res) => {
