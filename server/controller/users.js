@@ -67,9 +67,11 @@ users.get('/name', authenticate, (req, res) => {
 
 //Read actuals (lvl:1)
 users.get('/actuals', authenticate, (req, res) => {
+
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
   }
+  
   User.find({'isIn': true}).then((users) => {
     let actualusers = users.map((user) => { return user.name; });
     res.send({ actualusers });
