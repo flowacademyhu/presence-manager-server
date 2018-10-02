@@ -56,12 +56,15 @@ users.get('/name', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
   }
-  user.find({
-    _name: req.user._name,
-    _id: req.user._id
-  })
-    .then(users => res.send(users))
-    .catch(e => res.status(400).send(e));
+  User.find({})
+    .then(users => {
+      let allUsersName = users.map((user) => {
+        return user.name
+      });
+      res.send({ allUsersName });
+    }, (e) => {
+      res.status(400).send(e);
+    });
 });
 
 
