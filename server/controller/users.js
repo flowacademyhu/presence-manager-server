@@ -3,8 +3,8 @@ const _ = require('lodash');
 
 const users = express.Router({ mergeParams: true });
 
-const {User} = require('../models/user');
-const {hashRandomPassword} = require('../middleware/hash_randomPassword');
+const { User } = require('../models/user');
+const { hashRandomPassword } = require('../middleware/hash_randomPassword');
 
 //Lvl -> accessLevel Enum:[Admin:0, OfficeAdmin: 1, User:2]
 
@@ -53,15 +53,18 @@ users.get('/:id', authenticate, (req, res) => {
 
 //Read all (lvl:0)
 users.get('/name', authenticate, (req, res) => {
-	if(req.user.accessLevel !== 0) {
-		return res.status(401).send();
-	}
-	user.find ({
-		_name: req.user._name,
-		_id: req.user._id 
-	})
-	.then(users => res.send(users))
-	.catch(e => res.status(400).send(e));
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+  User.find({})
+    .then(users => {
+      let allUsersName = users.map((user) => {
+        return user.name
+      });
+      res.send({ allUsersName });
+    }, (e) => {
+      res.status(400).send(e);
+    });
 });
 
 
