@@ -1,10 +1,12 @@
 const express = require('express');
 const _ = require('lodash');
 
-const users = express.Router({ mergeParams: true });
+const users = express.Router();
 
 const { User } = require('../models/user');
-const { hashRandomPassword, authenticate, hashPassword } = require('../middleware/hash_randomPassword');
+const { hashRandomPassword } = require('../middleware/hash_randomPassword');
+const { authenticate } = require('../middleware/authenticate');
+const { hashPassword } = require('../middleware/hash_password');
 
 //Lvl -> accessLevel Enum:[Admin:0, OfficeAdmin: 1, User:2]
 
@@ -12,8 +14,7 @@ const { hashRandomPassword, authenticate, hashPassword } = require('../middlewar
 users.post('/', hashRandomPassword, (req, res) => {
   let body = _.pick(req.body, ['name', 'email', 'password', 'contractId', 'accessLevel', 'group']);
   let user = new User(body);
-  let unHashedRandomPassword = _.pick(req.body, ['unHashedRandomPassword']);
-  sendMail(unHashedRandomPassword, body.email);
+  sendMail(req.body.unHashedRandomPassword, body.email);
 
   user.save().then(() => {
     return user.generateAuthToken();
@@ -26,23 +27,22 @@ users.post('/', hashRandomPassword, (req, res) => {
   }).catch(e => res.status(400).send(e));
 });
 
-//Read me (lvl:2)
-users.get('/me', authenticate, (req, res));
-let body = _.pick(req.body, ['name', 'email', 'password', 'group', 'Logs', 'isIn']);
+// Read me (lvl:2)
+users.get('/me', authenticate, (req, res) => {
+  let body = _.pick(req.body, ['name', 'email', 'password', 'group', 'Logs', 'isIn']);
 
-User.findById({
-  _id: req.user._id
-}).then(user => {
-  if (!user) {
-    return res.status(404).send();
-  }
-  res.status(200).send({ body });
-}).catch(err => {
-  if (e) {
-    res.status(400).send(e);
-  }
+  User.findById({_id: req.user._id})
+    .then(user => {
+      if (!user) {
+        return res.status(404).send();
+      }
+      res.status(200).send({ body });
+  }).catch(err => {
+    if (err) {
+      res.status(400).send(err);
+    }
+  });
 });
-
 
 //Login (lvl:2)
 users.post('/login', (req, res) => {
@@ -113,7 +113,7 @@ users.get('/actuals', authenticate, (req, res) => {
 });
 
 //Update user (lvl:2)
-users.patch('/me', (req, res));
+// users.patch('/me', (req, res));
 
 //Update user (lvl:0)
 users.patch('/users', [authenticate, hashPassword], (req, res) => {
@@ -173,9 +173,11 @@ sendMail = function (randomPassword, email) {
   var domain = process.env.DOMAIN;
   var mailgun = require('mailgun-js')({ apiKey: api_key, domain: domain });
 
+  console.log(email);
+
   var data = {
     from: 'Presence Manager Server <flowpresencemanager@gmail.com>',
-    to: email,
+    to: `${email}`,
     subject: 'Flow Academy Regisztrációs Jelszó',
     text: `Kedves Regisztráló! Első belépéshez való belépési kódod: ${randomPassword}`
   };
