@@ -11,32 +11,30 @@ const { hashPassword } = require('../middleware/hash_password');
 //Lvl -> accessLevel Enum:[Admin:0, OfficeAdmin: 1, User:2]
 
 //Create (lvl:0)
-users.post('/', hashRandomPassword, (req, res) => {
+users.post('/',[authenticate, hashRandomPassword], (req, res) => {
+    if (req.user.accessLevel !== 0) {
+        return res.status(401).send();
+    }
   let body = _.pick(req.body, ['name', 'email', 'password', 'contractId', 'accessLevel', 'group']);
   let user = new User(body);
   sendMail(req.body.unHashedRandomPassword, body.email);
 
-  user.save().then(() => {
-    return user.generateAuthToken();
-  }).then((token) => {
-    res.header('x-auth', token).send({
-      idToken: token,
-      expiresIn: 7200,
-      accessLevel: user.accessLevel
-    });
+  user.save().then((user) => {
+    res.status(200).send(user);
   }).catch(e => res.status(400).send(e));
 });
 
 // Read me (lvl:2)
 users.get('/me', authenticate, (req, res) => {
-  let body = _.pick(req.body, ['name', 'email', 'password', 'group', 'Logs', 'isIn']);
 
   User.findById({_id: req.user._id})
     .then(user => {
       if (!user) {
         return res.status(404).send();
       }
-      res.status(200).send({ body });
+        let body = _.pick(user, ['name', 'email', 'group', 'Logs', 'isIn']);
+
+      res.status(200).send(body);
   }).catch(err => {
     if (err) {
       res.status(400).send(err);
@@ -46,19 +44,19 @@ users.get('/me', authenticate, (req, res) => {
 
 //Login (lvl:2)
 users.post('/login', (req, res) => {
-    let body = _.pick(req.body, ['email', 'password']);
+  let body = _.pick(req.body, ['email', 'password']);
 
-    User.findByCredentials(body.email, body.password).then(user => {
-        return user.generateAuthToken().then(token => {
-            res.header('x-auth', token).send({
-                idToken: token,
-                expiresIn: 7200,
-                accessLevel: user.accessLevel
-            });
-        });
+  User.findByCredentials(body.email, body.password)
+    .then(user => {
+      let token =  user.generateAuthToken();
+      res.send({
+        idToken: token,
+        expiresIn: 7200,
+        accessLevel: user.accessLevel
+      });
     }).catch(err => {
-        res.status(400).send(err);
-    });
+    res.status(400).send(err);
+  });
 });
 
 //Read a user (lvl:0)
@@ -117,6 +115,10 @@ users.get('/actuals', authenticate, (req, res) => {
 
 //Update user (lvl:0)
 users.patch('/users', [authenticate, hashPassword], (req, res) => {
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+
   let body = _.pick(req.body, ['name', 'email', 'password', 'contractId', 'accessLevel', 'group']);
 
   User.findOneAndUpdate({
@@ -126,7 +128,7 @@ users.patch('/users', [authenticate, hashPassword], (req, res) => {
       return res.status(404).send();
     }
 
-    res.status(200).send({ user });
+    res.status(200).send(user);
   }).catch(err => {
     if (err) {
       res.status(400).send();

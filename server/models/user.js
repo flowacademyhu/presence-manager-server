@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
   name: {
@@ -40,7 +41,7 @@ const UserSchema = new mongoose.Schema({
   },
   group: {
     type: String,
-    enum: ['Mentor', 'TeamGamma', 'TeamDelta', 'Visitor']
+    enum: ['Mentor', 'TeamGamma', 'TeamDelta', 'Visitor', 'Admin']
   },
   isIn: {
     type: Boolean,
@@ -77,9 +78,6 @@ UserSchema.statics.findByCredentials = function (email, password) {
     if (!user) {
       return Promise.reject();
     }
-
-    console.log(password);
-    console.log(user.password);
 
     return new Promise((resolve, reject) => {
       bcrypt.compare(password, user.password, (err, res) => {
