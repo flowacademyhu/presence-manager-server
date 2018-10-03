@@ -25,7 +25,7 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-    minlength: 4
+    minlength: 6
   },
   contractId: {
     type: String,
@@ -46,6 +46,10 @@ const UserSchema = new mongoose.Schema({
   isIn: {
     type: Boolean,
     default: false
+  },
+  isGeneratedPassword: {
+    type: Boolean,
+    default: true
   },
   Logs: [String]
 });

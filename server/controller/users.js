@@ -1,5 +1,6 @@
 const express = require('express');
 const _ = require('lodash');
+const {ObjectID} = require('mongodb');
 
 const users = express.Router();
 
@@ -52,11 +53,31 @@ users.post('/login', (req, res) => {
       res.send({
         idToken: token,
         expiresIn: 7200,
-        accessLevel: user.accessLevel
+        accessLevel: user.accessLevel,
+        isGeneratedPassword: user.isGeneratedPassword
       });
     }).catch(err => {
     res.status(400).send(err);
   });
+});
+
+//New User
+users.patch('/newpassword',[authenticate, hashPassword], (req, res) => {
+
+  User.findOneAndUpdate({
+    _id: req.user._id
+  }, { $set: {password: req.body.password, isGeneratedPassword: false} }, { new: true, runValidators: true }).then(user => {
+    if (!user) {
+      return res.status(404).send();
+    }
+
+    res.status(200).send(user);
+  }).catch(err => {
+    if (err) {
+      res.status(400).send();
+    }
+  });
+
 });
 
 //Read a user (lvl:0)
@@ -79,14 +100,14 @@ users.get('/:id', authenticate, (req, res) => {
 
 
 //Read all (lvl:0)
-users.get('/name', authenticate, (req, res) => {
+users.get('/list/name', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
   }
   User.find({})
     .then(users => {
       let allUsersName = users.map((user) => {
-        return user.name
+        return [user.name, user.group, user._id]
       });
       res.send({ allUsersName });
     }, (e) => {
@@ -96,15 +117,14 @@ users.get('/name', authenticate, (req, res) => {
 
 
 //Read actuals (lvl:1)
-users.get('/actuals', authenticate, (req, res) => {
-
-  if (req.user.accessLevel !== 0) {
+users.get('/list/actuals', authenticate, (req, res) => {
+  if (req.user.accessLevel > 1) {
     return res.status(401).send();
   }
 
   User.find({ 'isIn': true }).then((users) => {
-    let actualusers = users.map((user) => { return user.name; });
-    res.send({ actualusers });
+    let actualusers = users.map((user) => { return [user.name, user._id, user.group]; });
+    res.send(actualusers);
   }, (e) => {
     res.status(400).send(e);
   });
@@ -112,9 +132,25 @@ users.get('/actuals', authenticate, (req, res) => {
 
 //Update user (lvl:2)
 // users.patch('/me', (req, res));
+users.patch('/me', [authenticate, hashPassword], (req, res) => {
+  let body = _.pick(req.body, ['email', 'password']);
+
+  User.findOneAndUpdate({
+    _id: req.user._id
+  }, { $set: body }, { new: true, runValidators: true }).then(user => {
+    if (!user) {
+      return res.status(404).send();
+    }
+    res.status(200).send(user);
+  }).catch(err => {
+    if (err) {
+      res.status(400).send();
+    }
+  });
+});
 
 //Update user (lvl:0)
-users.patch('/users', [authenticate, hashPassword], (req, res) => {
+users.patch('/', [authenticate, hashPassword], (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
   }
@@ -137,12 +173,12 @@ users.patch('/users', [authenticate, hashPassword], (req, res) => {
 });
 
 //Delete group (lvl:0)
-users.delete('/users/group/:id', (req, res) => {
+users.delete('/group/:id', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
-    return res.status(400).send();
+    return res.status(401).send();
   }
   User.remove({ 'group': req.params.id }).then((user) => {
-    res.send({ user });
+    res.send(user);
   }, (e) => {
     res.status(400).send(e);
   });
@@ -162,9 +198,10 @@ users.delete('/:id', authenticate, (req, res) => {
 
   User.findByIdAndRemove(id, (e, user) => {
     if (e) return res.status(404).send(e);
+    if (!user) return res.status(404).send();
     const response = {
       message: "User successfully deleted",
-      id: user._id
+      id
     };
     return res.status(200).send(response);
   });
