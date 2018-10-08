@@ -1,6 +1,7 @@
 const express = require('express');
 const _ = require('lodash');
 const {ObjectID} = require('mongodb');
+const axios = require('axios');
 
 const users = express.Router();
 
@@ -16,12 +17,27 @@ users.post('/',[authenticate, hashRandomPassword], (req, res) => {
     if (req.user.accessLevel !== 0) {
         return res.status(401).send();
     }
-  let body = _.pick(req.body, ['name', 'email', 'password', 'contractId', 'accessLevel', 'group']);
+  let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', 'group']);
   let user = new User(body);
-  sendMail(req.body.unHashedRandomPassword, body.email);
 
   user.save().then((user) => {
-    res.status(200).send(user);
+
+    axios.post('http://localhost:3001/logs', {
+      _user: user._id,
+      macAddress: user.macAddress
+    })
+      .then(() =>  {
+        sendMail(req.body.unHashedRandomPassword, body.email);
+        res.status(200).send(user);
+      })
+      .catch((error) => {
+        console.log(error);
+        User.findByIdAndRemove(user._id, (error) => {
+          if (!error) {
+            res.status(503).send(error);
+          }
+        });
+      });
   }).catch(e => res.status(400).send(e));
 });
 
@@ -33,7 +49,7 @@ users.get('/me', authenticate, (req, res) => {
       if (!user) {
         return res.status(404).send();
       }
-        let body = _.pick(user, ['name', 'email', 'group', 'Logs', 'isIn']);
+        let body = _.pick(user, ['name', 'email', 'group', 'logs']);
 
       res.status(200).send(body);
   }).catch(err => {
@@ -155,7 +171,7 @@ users.patch('/', [authenticate, hashPassword], (req, res) => {
     return res.status(401).send();
   }
 
-  let body = _.pick(req.body, ['name', 'email', 'password', 'contractId', 'accessLevel', 'group']);
+  let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', 'group']);
 
   User.findOneAndUpdate({
     _id: req.body._id
@@ -208,13 +224,13 @@ users.delete('/:id', authenticate, (req, res) => {
 });
 
 sendMail = function (randomPassword, email) {
-  var api_key = process.env.API_KEY;
-  var domain = process.env.DOMAIN;
-  var mailgun = require('mailgun-js')({ apiKey: api_key, domain: domain });
+  const api_key = process.env.API_KEY;
+  const domain = process.env.DOMAIN;
+  const mailgun = require('mailgun-js')({ apiKey: api_key, domain: domain });
 
   console.log(email);
 
-  var data = {
+  const data = {
     from: 'Presence Manager Server <flowpresencemanager@gmail.com>',
     to: `${email}`,
     subject: 'Flow Academy Regisztrációs Jelszó',
