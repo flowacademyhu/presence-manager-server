@@ -192,11 +192,33 @@ users.delete('/group/:id', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
   }
-  User.remove({ 'group': req.params.id }).then((user) => {
-    res.send(user);
-  }, (e) => {
-    res.status(400).send(e);
-  });
+
+  const deleteRecords = async () => {
+    let users = await User.find({'group': req.params.id});
+    let IDs = users.map(user => {return user._id});
+
+    let results = [];
+
+    for (let i = 0; i < IDs.length; i++) {
+      let axiosResp = await axios.delete(`http://localhost:3001/logs/${IDs[i]}`);
+      let serverResp = await User.deleteOne({_id: IDs[i]});
+      results.push([axiosResp.data, serverResp]);
+    }
+
+    return results;
+  };
+
+  deleteRecords().then(ids => {
+    if (ids.length === 0) {
+      res.status(400).send({message: 'No record by the provided param'});
+    }
+    res.status(200).send({ids});
+  })
+    .catch(error => {
+      if (error.errno === 'ECONNREFUSED') {
+        res.status(503).send();
+      }
+    });
 });
 
 //Delete user (lvl: 0)
