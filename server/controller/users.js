@@ -30,8 +30,7 @@ users.post('/',[authenticate, hashRandomPassword], (req, res) => {
         sendMail(req.body.unHashedRandomPassword, body.email);
         res.status(200).send(user);
       })
-      .catch((error) => {
-        console.log(error);
+      .catch(() => {
         User.findByIdAndRemove(user._id, (error) => {
           if (!error) {
             res.status(503).send(error);
@@ -212,15 +211,21 @@ users.delete('/:id', authenticate, (req, res) => {
     return res.status(404).send();
   }
 
-  User.findByIdAndRemove(id, (e, user) => {
-    if (e) return res.status(404).send(e);
-    if (!user) return res.status(404).send();
-    const response = {
-      message: "User successfully deleted",
-      id
-    };
-    return res.status(200).send(response);
-  });
+  axios.delete(`http://localhost:3001/logs/${id}`)
+    .then(() => {
+      User.findByIdAndRemove(id, (e, user) => {
+        if (e) return res.status(404).send(e);
+        if (!user) return res.status(404).send();
+        const response = {
+          message: "User successfully deleted",
+          id
+        };
+        return res.status(200).send(response);
+      });
+    })
+    .catch(() => {
+      res.status(503).send();
+    });
 });
 
 sendMail = function (randomPassword, email) {
