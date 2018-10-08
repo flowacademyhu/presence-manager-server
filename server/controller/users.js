@@ -172,19 +172,49 @@ users.patch('/', [authenticate, hashPassword], (req, res) => {
 
   let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', 'group']);
 
-  User.findOneAndUpdate({
-    _id: req.body._id
-  }, { $set: body }, { new: true, runValidators: true }).then(user => {
-    if (!user) {
-      return res.status(404).send();
-    }
 
-    res.status(200).send(user);
-  }).catch(err => {
-    if (err) {
-      res.status(400).send();
-    }
-  });
+  if (body.macAddress) {
+    axios.patch('http://localhost:3001/logs', {
+      _user: req.body._id,
+      macAddress: body.macAddress
+    })
+      .then(() => {
+        User.findOneAndUpdate({
+          _id: req.body._id
+        }, { $set: body }, { new: true, runValidators: true }).then(user => {
+          if (!user) {
+            return res.status(404).send();
+          }
+
+          res.status(200).send(user);
+        }).catch(err => {
+          if (err) {
+            res.status(400).send();
+          }
+        });
+      })
+      .catch(error => {
+        if (error.response && error.response.status === 404) {
+          res.status(404).send()
+        } else {
+          res.status(503).send();
+        }
+      });
+  } else {
+    User.findOneAndUpdate({
+      _id: req.body._id
+    }, { $set: body }, { new: true, runValidators: true }).then(user => {
+      if (!user) {
+        return res.status(404).send();
+      }
+
+      res.status(200).send(user);
+    }).catch(err => {
+      if (err) {
+        res.status(400).send();
+      }
+    });
+  }
 });
 
 //Delete group (lvl:0)
