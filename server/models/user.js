@@ -27,6 +27,11 @@ const UserSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
+  macAddress: {
+    type: String,
+    required: true,
+    minlength: 5
+  },
   contractId: {
     type: String,
     unique: true,
@@ -43,15 +48,22 @@ const UserSchema = new mongoose.Schema({
     type: String,
     enum: ['Mentor', 'TeamGamma', 'TeamDelta', 'Visitor', 'Admin']
   },
-  isIn: {
-    type: Boolean,
-    default: false
-  },
   isGeneratedPassword: {
     type: Boolean,
     default: true
   },
-  Logs: [String]
+  logs: [{
+    subjectDate: {
+      type: String,
+      required: true
+    },
+    firstCheckIn: {
+      type: String,
+    },
+    lastCheckIn: {
+      type: String,
+    }
+  }]
 });
 
 UserSchema.methods.generateAuthToken = function () {

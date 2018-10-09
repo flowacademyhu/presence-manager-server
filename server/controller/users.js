@@ -1,6 +1,9 @@
 const express = require('express');
 const _ = require('lodash');
 const {ObjectID} = require('mongodb');
+const axios = require('axios');
+const moment = require('moment');
+const schedule = require('node-schedule');
 
 const users = express.Router();
 
@@ -9,6 +12,27 @@ const { hashRandomPassword } = require('../middleware/hash_randomPassword');
 const { authenticate } = require('../middleware/authenticate');
 const { hashPassword } = require('../middleware/hash_password');
 
+// sync
+schedule.scheduleJob('*/1 * * * *', function(){
+  axios.get('http://localhost:3001/logs')
+    .then((response) => {
+
+      const syncData = async (response) => {
+        for (let i = 0; i < response.length; i++) {
+          await User.findOneAndUpdate({_id: response[i]._user}, {$set: {logs: response[i].logs}}, {
+            new: true,
+            runValidators: true
+          });
+        }
+      };
+
+      syncData(response.data).then(() => console.log(`${new Date()} - OK`)).catch(() => console.log(`${new Date()} - ERROR`))
+    })
+    .catch(() => {
+      console.log(`${new Date()} - ERROR - 503`);
+    });
+});
+
 //Lvl -> accessLevel Enum:[Admin:0, OfficeAdmin: 1, User:2]
 
 //Create (lvl:0)
@@ -16,12 +40,26 @@ users.post('/',[authenticate, hashRandomPassword], (req, res) => {
     if (req.user.accessLevel !== 0) {
         return res.status(401).send();
     }
-  let body = _.pick(req.body, ['name', 'email', 'password', 'contractId', 'accessLevel', 'group']);
+  let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', 'group']);
   let user = new User(body);
-  sendMail(req.body.unHashedRandomPassword, body.email);
 
   user.save().then((user) => {
-    res.status(200).send(user);
+
+    axios.post('http://localhost:3001/logs', {
+      _user: user._id,
+      macAddress: user.macAddress
+    })
+      .then(() =>  {
+        sendMail(req.body.unHashedRandomPassword, body.email);
+        res.status(200).send(user);
+      })
+      .catch(() => {
+        User.findByIdAndRemove(user._id, (error) => {
+          if (!error) {
+            res.status(503).send(error);
+          }
+        });
+      });
   }).catch(e => res.status(400).send(e));
 });
 
@@ -33,7 +71,7 @@ users.get('/me', authenticate, (req, res) => {
       if (!user) {
         return res.status(404).send();
       }
-        let body = _.pick(user, ['name', 'email', 'group', 'Logs', 'isIn']);
+        let body = _.pick(user, ['name', 'email', 'group', 'logs']);
 
       res.status(200).send(body);
   }).catch(err => {
@@ -122,9 +160,9 @@ users.get('/list/actuals', authenticate, (req, res) => {
     return res.status(401).send();
   }
 
-  User.find({ 'isIn': true }).then((users) => {
-    let actualusers = users.map((user) => { return [user.name, user._id, user.group]; });
-    res.send(actualusers);
+  User.find({logs: {$elemMatch: {subjectDate: moment().format('MMMM Do YYYY')}}}).then((users) => {
+    let actualusers = users.map((user) => { return [user.name, user._id, user.group, user.logs[user.logs.length - 1].lastCheckIn]; });
+    res.status(200).send(actualusers);
   }, (e) => {
     res.status(400).send(e);
   });
@@ -155,21 +193,51 @@ users.patch('/', [authenticate, hashPassword], (req, res) => {
     return res.status(401).send();
   }
 
-  let body = _.pick(req.body, ['name', 'email', 'password', 'contractId', 'accessLevel', 'group']);
+  let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', 'group']);
 
-  User.findOneAndUpdate({
-    _id: req.body._id
-  }, { $set: body }, { new: true, runValidators: true }).then(user => {
-    if (!user) {
-      return res.status(404).send();
-    }
 
-    res.status(200).send(user);
-  }).catch(err => {
-    if (err) {
-      res.status(400).send();
-    }
-  });
+  if (body.macAddress) {
+    axios.patch('http://localhost:3001/logs', {
+      _user: req.body._id,
+      macAddress: body.macAddress
+    })
+      .then(() => {
+        User.findOneAndUpdate({
+          _id: req.body._id
+        }, { $set: body }, { new: true, runValidators: true }).then(user => {
+          if (!user) {
+            return res.status(404).send();
+          }
+
+          res.status(200).send(user);
+        }).catch(err => {
+          if (err) {
+            res.status(400).send();
+          }
+        });
+      })
+      .catch(error => {
+        if (error.response && error.response.status === 404) {
+          res.status(404).send()
+        } else {
+          res.status(503).send();
+        }
+      });
+  } else {
+    User.findOneAndUpdate({
+      _id: req.body._id
+    }, { $set: body }, { new: true, runValidators: true }).then(user => {
+      if (!user) {
+        return res.status(404).send();
+      }
+
+      res.status(200).send(user);
+    }).catch(err => {
+      if (err) {
+        res.status(400).send();
+      }
+    });
+  }
 });
 
 //Delete group (lvl:0)
@@ -177,11 +245,33 @@ users.delete('/group/:id', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
   }
-  User.remove({ 'group': req.params.id }).then((user) => {
-    res.send(user);
-  }, (e) => {
-    res.status(400).send(e);
-  });
+
+  const deleteRecords = async () => {
+    let users = await User.find({'group': req.params.id});
+    let IDs = users.map(user => {return user._id});
+
+    let results = [];
+
+    for (let i = 0; i < IDs.length; i++) {
+      let axiosResp = await axios.delete(`http://localhost:3001/logs/${IDs[i]}`);
+      let serverResp = await User.deleteOne({_id: IDs[i]});
+      results.push([axiosResp.data, serverResp]);
+    }
+
+    return results;
+  };
+
+  deleteRecords().then(ids => {
+    if (ids.length === 0) {
+      res.status(400).send({message: 'No record by the provided param'});
+    }
+    res.status(200).send({ids});
+  })
+    .catch(error => {
+      if (error.errno === 'ECONNREFUSED') {
+        res.status(503).send();
+      }
+    });
 });
 
 //Delete user (lvl: 0)
@@ -196,25 +286,31 @@ users.delete('/:id', authenticate, (req, res) => {
     return res.status(404).send();
   }
 
-  User.findByIdAndRemove(id, (e, user) => {
-    if (e) return res.status(404).send(e);
-    if (!user) return res.status(404).send();
-    const response = {
-      message: "User successfully deleted",
-      id
-    };
-    return res.status(200).send(response);
-  });
+  axios.delete(`http://localhost:3001/logs/${id}`)
+    .then(() => {
+      User.findByIdAndRemove(id, (e, user) => {
+        if (e) return res.status(404).send(e);
+        if (!user) return res.status(404).send();
+        const response = {
+          message: "User successfully deleted",
+          id
+        };
+        return res.status(200).send(response);
+      });
+    })
+    .catch(() => {
+      res.status(503).send();
+    });
 });
 
 sendMail = function (randomPassword, email) {
-  var api_key = process.env.API_KEY;
-  var domain = process.env.DOMAIN;
-  var mailgun = require('mailgun-js')({ apiKey: api_key, domain: domain });
+  const api_key = process.env.API_KEY;
+  const domain = process.env.DOMAIN;
+  const mailgun = require('mailgun-js')({ apiKey: api_key, domain: domain });
 
   console.log(email);
 
-  var data = {
+  const data = {
     from: 'Presence Manager Server <flowpresencemanager@gmail.com>',
     to: `${email}`,
     subject: 'Flow Academy Regisztrációs Jelszó',
