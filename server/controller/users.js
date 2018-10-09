@@ -2,6 +2,8 @@ const express = require('express');
 const _ = require('lodash');
 const {ObjectID} = require('mongodb');
 const axios = require('axios');
+const moment = require('moment');
+const schedule = require('node-schedule');
 
 const users = express.Router();
 
@@ -9,6 +11,27 @@ const { User } = require('../models/user');
 const { hashRandomPassword } = require('../middleware/hash_randomPassword');
 const { authenticate } = require('../middleware/authenticate');
 const { hashPassword } = require('../middleware/hash_password');
+
+// sync
+schedule.scheduleJob('*/1 * * * *', function(){
+  axios.get('http://localhost:3001/logs')
+    .then((response) => {
+
+      const syncData = async (response) => {
+        for (let i = 0; i < response.length; i++) {
+          await User.findOneAndUpdate({_id: response[i]._user}, {$set: {logs: response[i].logs}}, {
+            new: true,
+            runValidators: true
+          });
+        }
+      };
+
+      syncData(response.data).then(() => console.log(`${new Date()} - OK`)).catch(() => console.log(`${new Date()} - ERROR`))
+    })
+    .catch(() => {
+      console.log(`${new Date()} - ERROR - 503`);
+    });
+});
 
 //Lvl -> accessLevel Enum:[Admin:0, OfficeAdmin: 1, User:2]
 
@@ -137,9 +160,9 @@ users.get('/list/actuals', authenticate, (req, res) => {
     return res.status(401).send();
   }
 
-  User.find({ 'isIn': true }).then((users) => {
-    let actualusers = users.map((user) => { return [user.name, user._id, user.group]; });
-    res.send(actualusers);
+  User.find({logs: {$elemMatch: {subjectDate: moment().format('MMMM Do YYYY')}}}).then((users) => {
+    let actualusers = users.map((user) => { return [user.name, user._id, user.group, user.logs[user.logs.length - 1].lastCheckIn]; });
+    res.status(200).send(actualusers);
   }, (e) => {
     res.status(400).send(e);
   });
