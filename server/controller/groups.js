@@ -31,7 +31,7 @@ groups.delete('/:id', authenticate, (req, res) => {
     return res.status(401).send();
   }
 
-  Group.deleteOne({ '_id': req.params.id }).then(() => {
+  Group.deleteOne({ '_id': req.params.id }).then((group) => {
     const deleteRecords = async () => {
       let users = await User.find({'_group': req.params.id});
       let IDs = users.map(user => {return user._id});
@@ -48,6 +48,10 @@ groups.delete('/:id', authenticate, (req, res) => {
     };
 
     deleteRecords().then(ids => {
+      if (group && ids.length === 0) {
+        res.status(200).send(group);
+      }
+
       if (ids.length === 0) {
         res.status(400).send({message: 'No record by the provided param'});
       }
@@ -63,31 +67,40 @@ groups.delete('/:id', authenticate, (req, res) => {
   });
 });
 
-// // PATCH /logs
-// logs.patch('/', (req, res) => {
-//   Log.findOneAndUpdate({
-//     _user: req.body._user
-//   }, { $set: { macAddress: req.body.macAddress } }, { new: true, runValidators: true }).then(log => {
-//     if (!log) {
-//       return res.status(404).send();
-//     }
-//
-//     res.status(200).send(log);
-//   }).catch(err => {
-//     if (err) {
-//       res.status(400).send();
-//     }
-//   });
-// });
-//
-// // GET /logs
-// logs.get('/', (req, res) => {
-//   Log.find().then((users) => {
-//     res.status(200).send(users);
-//   }, (e) => {
-//     res.status(400).send(e);
-//   });
-// });
+// PATCH /logs
+groups.patch('/', authenticate, (req, res) => {
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+
+  Group.findOneAndUpdate({
+    _id: req.body._group
+  }, { $set: { name: req.body.name } }, { new: true, runValidators: true }).then(group => {
+    if (!group) {
+      return res.status(404).send();
+    }
+
+    res.status(200).send(group);
+  }).catch(err => {
+    if (err) {
+      res.status(400).send();
+    }
+  });
+});
+
+
+// GET /logs
+groups.get('/', authenticate, (req, res) => {
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+
+  Group.find().then((groups) => {
+    res.status(200).send(groups);
+  }, (e) => {
+    res.status(400).send(e);
+  });
+});
 
 
 module.exports = groups;
