@@ -44,9 +44,9 @@ const UserSchema = new mongoose.Schema({
     max: 2,
     default: 2
   },
-  group: {
-    type: String,
-    enum: ['Mentor', 'TeamGamma', 'TeamDelta', 'Visitor', 'Admin']
+  _group: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
   },
   isGeneratedPassword: {
     type: Boolean,

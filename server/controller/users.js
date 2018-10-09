@@ -40,7 +40,7 @@ users.post('/',[authenticate, hashRandomPassword], (req, res) => {
     if (req.user.accessLevel !== 0) {
         return res.status(401).send();
     }
-  let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', 'group']);
+  let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', '_group']);
   let user = new User(body);
 
   user.save().then((user) => {
@@ -71,7 +71,7 @@ users.get('/me', authenticate, (req, res) => {
       if (!user) {
         return res.status(404).send();
       }
-        let body = _.pick(user, ['name', 'email', 'group', 'logs']);
+        let body = _.pick(user, ['name', 'email', '_group', 'logs']);
 
       res.status(200).send(body);
   }).catch(err => {
@@ -145,9 +145,9 @@ users.get('/list/name', authenticate, (req, res) => {
   User.find({})
     .then(users => {
       let allUsersName = users.map((user) => {
-        return [user.name, user.group, user._id]
+        return [user.name, user._group, user._id]
       });
-      res.send({ allUsersName });
+      res.send(allUsersName);
     }, (e) => {
       res.status(400).send(e);
     });
@@ -161,29 +161,10 @@ users.get('/list/actuals', authenticate, (req, res) => {
   }
 
   User.find({logs: {$elemMatch: {subjectDate: moment().format('MMMM Do YYYY')}}}).then((users) => {
-    let actualusers = users.map((user) => { return [user.name, user._id, user.group, user.logs[user.logs.length - 1].lastCheckIn]; });
+    let actualusers = users.map((user) => { return [user.name, user._id, user._group, user.logs[user.logs.length - 1].lastCheckIn]; });
     res.status(200).send(actualusers);
   }, (e) => {
     res.status(400).send(e);
-  });
-});
-
-//Update user (lvl:2)
-// users.patch('/me', (req, res));
-users.patch('/me', [authenticate, hashPassword], (req, res) => {
-  let body = _.pick(req.body, ['email', 'password']);
-
-  User.findOneAndUpdate({
-    _id: req.user._id
-  }, { $set: body }, { new: true, runValidators: true }).then(user => {
-    if (!user) {
-      return res.status(404).send();
-    }
-    res.status(200).send(user);
-  }).catch(err => {
-    if (err) {
-      res.status(400).send();
-    }
   });
 });
 
@@ -193,7 +174,7 @@ users.patch('/', [authenticate, hashPassword], (req, res) => {
     return res.status(401).send();
   }
 
-  let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', 'group']);
+  let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', '_group']);
 
 
   if (body.macAddress) {
@@ -238,40 +219,6 @@ users.patch('/', [authenticate, hashPassword], (req, res) => {
       }
     });
   }
-});
-
-//Delete group (lvl:0)
-users.delete('/group/:id', authenticate, (req, res) => {
-  if (req.user.accessLevel !== 0) {
-    return res.status(401).send();
-  }
-
-  const deleteRecords = async () => {
-    let users = await User.find({'group': req.params.id});
-    let IDs = users.map(user => {return user._id});
-
-    let results = [];
-
-    for (let i = 0; i < IDs.length; i++) {
-      let axiosResp = await axios.delete(`http://localhost:3001/logs/${IDs[i]}`);
-      let serverResp = await User.deleteOne({_id: IDs[i]});
-      results.push([axiosResp.data, serverResp]);
-    }
-
-    return results;
-  };
-
-  deleteRecords().then(ids => {
-    if (ids.length === 0) {
-      res.status(400).send({message: 'No record by the provided param'});
-    }
-    res.status(200).send({ids});
-  })
-    .catch(error => {
-      if (error.errno === 'ECONNREFUSED') {
-        res.status(503).send();
-      }
-    });
 });
 
 //Delete user (lvl: 0)
