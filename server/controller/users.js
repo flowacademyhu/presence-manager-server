@@ -250,6 +250,34 @@ users.delete('/:id', authenticate, (req, res) => {
     });
 });
 
+//Edit presence (lvl: 0)
+users.patch('/presence/edit', authenticate, (req, res) => {
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+
+  axios.patch('http://localhost:3001/logs/presence/edit', {
+    _user: req.body._user,
+    _id: req.body._id,
+    firstCheckIn: req.body.firstCheckIn,
+    lastCheckIn: req.body.lastCheckIn
+  })
+    .then(() => {
+      User.update({_id : req.body._user, "logs._id": req.body._id},
+        {$set: {"logs.$.firstCheckIn": req.body.firstCheckIn, "logs.$.lastCheckIn": req.body.lastCheckIn}})
+        .then(log => {
+          if (!log) {
+            return res.status(404).send();
+          }
+          res.status(200).send(log)
+        })
+        .catch(error => res.status(400).send(error))
+    })
+    .catch(() => {
+      res.status(503).send();
+    });
+});
+
 sendMail = function (randomPassword, email) {
   const api_key = process.env.API_KEY;
   const domain = process.env.DOMAIN;
