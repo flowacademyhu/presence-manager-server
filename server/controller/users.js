@@ -41,6 +41,9 @@ users.post('/',[authenticate, hashRandomPassword], (req, res) => {
         return res.status(401).send();
     }
   let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', '_group']);
+
+  body.macAddress = body.macAddress.toLowerCase();
+
   let user = new User(body);
 
   user.save().then((user) => {
@@ -176,6 +179,7 @@ users.patch('/', [authenticate, hashPassword], (req, res) => {
 
   let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', '_group']);
 
+  body.macAddress = body.macAddress.toLowerCase();
 
   if (body.macAddress) {
     axios.patch('http://localhost:3001/logs', {
