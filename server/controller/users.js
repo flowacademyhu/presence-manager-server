@@ -278,13 +278,11 @@ users.patch('/presence/edit', authenticate, (req, res) => {
     });
 });
 
-// Manual firstCheckIn
+// Manual checkIn
 users.post('/presence/manual', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
   }
-
-  console.log('OK');
 
   axios.post('http://localhost:3001/logs/presence/manual', {
     _user: req.body._id,
@@ -292,6 +290,9 @@ users.post('/presence/manual', authenticate, (req, res) => {
     .then(() => {
       User.findOne({_id: req.body._id})
         .then(item => {
+          if (!item) {
+            res.status(404).send();
+          }
           if (item) {
             let index = item.logs.findIndex(obj => {
               return obj.subjectDate === moment().format('MMMM Do YYYY')
@@ -306,10 +307,26 @@ users.post('/presence/manual', authenticate, (req, res) => {
                 .catch(error => res.status(400).send(error));
             }
           }
-        });
+        })
+        .catch(error => res.status(400).send(error));
     })
     .catch(() => {
       res.status(503).send();
+    });
+});
+
+// alreadyInToday
+users.get('/presence/manual/:id', authenticate, (req, res) => {
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+
+  axios.get(`http://localhost:3001/logs/presence/manual/${req.params.id}`)
+    .then((resp) => {
+      res.status(200).send(resp.data)
+    })
+    .catch((error) => {
+      res.status(503).send(error)
     });
 });
 
