@@ -41,6 +41,9 @@ users.post('/',[authenticate, hashRandomPassword], (req, res) => {
         return res.status(401).send();
     }
   let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', '_group']);
+
+  body.macAddress = body.macAddress.toLowerCase();
+
   let user = new User(body);
 
   user.save().then((user) => {
@@ -176,6 +179,7 @@ users.patch('/', [authenticate, hashPassword], (req, res) => {
 
   let body = _.pick(req.body, ['name', 'email', 'macAddress', 'password', 'contractId', 'accessLevel', '_group']);
 
+  body.macAddress = body.macAddress.toLowerCase();
 
   if (body.macAddress) {
     axios.patch('http://localhost:3001/logs', {
@@ -278,12 +282,62 @@ users.patch('/presence/edit', authenticate, (req, res) => {
     });
 });
 
+// Manual checkIn
+users.post('/presence/manual', authenticate, (req, res) => {
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+
+  axios.post('http://localhost:3001/logs/presence/manual', {
+    _user: req.body._id,
+  })
+    .then(() => {
+      User.findOne({_id: req.body._id})
+        .then(item => {
+          if (!item) {
+            res.status(404).send();
+          }
+          if (item) {
+            let index = item.logs.findIndex(obj => {
+              return obj.subjectDate === moment().format('MMMM Do YYYY')
+            });
+            if (index >= 0) {
+              item.addTimeSameDay(index)
+                .then((response) => res.status(200).send(response))
+                .catch(error => res.status(400).send(error));
+            } else {
+              item.addTimeNewDay()
+                .then((response) => res.status(200).send(response))
+                .catch(error => res.status(400).send(error));
+            }
+          }
+        })
+        .catch(error => res.status(400).send(error));
+    })
+    .catch(() => {
+      res.status(503).send();
+    });
+});
+
+// alreadyInToday
+users.get('/presence/manual/:id', authenticate, (req, res) => {
+  if (req.user.accessLevel !== 0) {
+    return res.status(401).send();
+  }
+
+  axios.get(`http://localhost:3001/logs/presence/manual/${req.params.id}`)
+    .then((resp) => {
+      res.status(200).send(resp.data)
+    })
+    .catch((error) => {
+      res.status(503).send(error)
+    });
+});
+
 sendMail = function (randomPassword, email) {
   const api_key = process.env.API_KEY;
   const domain = process.env.DOMAIN;
   const mailgun = require('mailgun-js')({ apiKey: api_key, domain: domain });
-
-  console.log(email);
 
   const data = {
     from: 'Presence Manager Server <flowpresencemanager@gmail.com>',

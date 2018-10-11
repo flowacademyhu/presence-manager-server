@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const moment = require('moment');
 
 const UserSchema = new mongoose.Schema({
   name: {
@@ -105,6 +106,25 @@ UserSchema.statics.findByCredentials = function (email, password) {
       });
     });
   });
+};
+
+UserSchema.methods.addTimeSameDay = function (index) {
+  let user = this;
+
+  user.logs[index].lastCheckIn = moment().format('MMMM Do YYYY, h:mm:ss a');
+
+  return user.save();
+};
+
+UserSchema.methods.addTimeNewDay = function () {
+  let user = this;
+  let time = moment().format('MMMM Do YYYY, h:mm:ss a');
+  let subjectDate = moment().format('MMMM Do YYYY');
+
+
+  user.logs = user.logs.concat([{subjectDate: subjectDate, firstCheckIn: time}]);
+
+  return user.save();
 };
 
 
