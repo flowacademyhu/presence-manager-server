@@ -19,7 +19,7 @@ schedule.scheduleJob('*/1 * * * *', function(){
 
       const syncData = async (response) => {
         for (let i = 0; i < response.length; i++) {
-          await User.findOneAndUpdate({_id: response[i]._user}, {$set: {logs: response[i].logs}}, {
+          await User.findOneAndUpdate({macAddress: response[i].macAddress}, {$set: {logs: response[i].logs}}, {
             new: true,
             runValidators: true
           });
@@ -47,22 +47,7 @@ users.post('/',[authenticate, hashRandomPassword], (req, res) => {
   let user = new User(body);
 
   user.save().then((user) => {
-
-    axios.post('http://localhost:3001/logs', {
-      _user: user._id,
-      macAddress: user.macAddress
-    })
-      .then(() =>  {
-        sendMail(req.body.unHashedRandomPassword, body.email);
-        res.status(200).send(user);
-      })
-      .catch(() => {
-        User.findByIdAndRemove(user._id, (error) => {
-          if (!error) {
-            res.status(503).send(error);
-          }
-        });
-      });
+    res.status(200).send(user);
   }).catch(e => res.status(400).send(e));
 });
 
@@ -139,7 +124,6 @@ users.get('/:id', authenticate, (req, res) => {
   });
 });
 
-
 //Read all (lvl:0)
 users.get('/list/name', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
@@ -155,7 +139,6 @@ users.get('/list/name', authenticate, (req, res) => {
       res.status(400).send(e);
     });
 });
-
 
 //Read actuals (lvl:1)
 users.get('/list/actuals', authenticate, (req, res) => {
@@ -181,48 +164,18 @@ users.patch('/', [authenticate, hashPassword], (req, res) => {
 
   body.macAddress = body.macAddress.toLowerCase();
 
-  if (body.macAddress) {
-    axios.patch('http://localhost:3001/logs', {
-      _user: req.body._id,
-      macAddress: body.macAddress
-    })
-      .then(() => {
-        User.findOneAndUpdate({
-          _id: req.body._id
-        }, { $set: body }, { new: true, runValidators: true }).then(user => {
-          if (!user) {
-            return res.status(404).send();
-          }
-
-          res.status(200).send(user);
-        }).catch(err => {
-          if (err) {
-            res.status(400).send();
-          }
-        });
-      })
-      .catch(error => {
-        if (error.response && error.response.status === 404) {
-          res.status(404).send()
-        } else {
-          res.status(503).send();
-        }
-      });
-  } else {
-    User.findOneAndUpdate({
-      _id: req.body._id
-    }, { $set: body }, { new: true, runValidators: true }).then(user => {
-      if (!user) {
-        return res.status(404).send();
-      }
-
-      res.status(200).send(user);
-    }).catch(err => {
-      if (err) {
-        res.status(400).send();
-      }
-    });
-  }
+  User.findOneAndUpdate({
+    _id: req.body._id
+  }, { $set: body }, { new: true, runValidators: true }).then(user => {
+    if (!user) {
+      return res.status(404).send();
+    }
+    res.status(200).send(user);
+  }).catch(err => {
+    if (err) {
+      res.status(400).send();
+    }
+  });
 });
 
 //Delete user (lvl: 0)
@@ -237,21 +190,15 @@ users.delete('/:id', authenticate, (req, res) => {
     return res.status(404).send();
   }
 
-  axios.delete(`http://localhost:3001/logs/${id}`)
-    .then(() => {
-      User.findByIdAndRemove(id, (e, user) => {
-        if (e) return res.status(404).send(e);
-        if (!user) return res.status(404).send();
-        const response = {
-          message: "User successfully deleted",
-          id
-        };
-        return res.status(200).send(response);
-      });
-    })
-    .catch(() => {
-      res.status(503).send();
-    });
+  User.findByIdAndRemove(id, (e, user) => {
+    if (e) return res.status(404).send(e);
+    if (!user) return res.status(404).send();
+    const response = {
+      message: "User successfully deleted",
+      id
+    };
+    return res.status(200).send(response);
+  });
 });
 
 //Edit presence (lvl: 0)
@@ -260,15 +207,25 @@ users.patch('/presence/edit', authenticate, (req, res) => {
     return res.status(401).send();
   }
 
-  axios.patch('http://localhost:3001/logs/presence/edit', {
-    _user: req.body._user,
-    _id: req.body._id,
+  let update = {};
+
+  if (req.body.firstCheckIn && req.body.lastCheckIn) {
+    update = {"logs.$.firstCheckIn": req.body.firstCheckIn, "logs.$.lastCheckIn": req.body.lastCheckIn};
+  } else if (req.body.firstCheckIn && !req.body.lastCheckIn) {
+    update = {"logs.$.firstCheckIn": req.body.firstCheckIn};
+  } else if (!req.body.firstCheckIn && req.body.lastCheckIn) {
+    update = {"logs.$.lastCheckIn": req.body.lastCheckIn};
+  }
+
+  axios.patch('http://localhost:3001/logs/', {
+    macAddress: req.body.macAddress,
+    subjectDate: req.body.subjectDate,
     firstCheckIn: req.body.firstCheckIn,
     lastCheckIn: req.body.lastCheckIn
   })
     .then(() => {
-      User.update({_id : req.body._user, "logs._id": req.body._id},
-        {$set: {"logs.$.firstCheckIn": req.body.firstCheckIn, "logs.$.lastCheckIn": req.body.lastCheckIn}})
+      User.update({macAddress : req.body.macAddress, "logs.subjectDate": req.body.subjectDate},
+        {$set: update})
         .then(log => {
           if (!log) {
             return res.status(404).send();
@@ -277,22 +234,22 @@ users.patch('/presence/edit', authenticate, (req, res) => {
         })
         .catch(error => res.status(400).send(error))
     })
-    .catch(() => {
+    .catch((err) => {
+      if (err.response.status === 404) {
+        res.status(404).send();
+      }
       res.status(503).send();
     });
 });
 
 // Manual checkIn
-users.post('/presence/manual', authenticate, (req, res) => {
-  if (req.user.accessLevel !== 0) {
-    return res.status(401).send();
-  }
+users.get('/presence/manual', authenticate, (req, res) => {
 
-  axios.post('http://localhost:3001/logs/presence/manual', {
-    _user: req.body._id,
+  axios.post('http://localhost:3001/logs/', {
+    macAddress: req.user.macAddress,
   })
     .then(() => {
-      User.findOne({_id: req.body._id})
+      User.findOne({macAddress: req.user.macAddress})
         .then(item => {
           if (!item) {
             res.status(404).send();
@@ -325,7 +282,7 @@ users.get('/presence/manual/:id', authenticate, (req, res) => {
     return res.status(401).send();
   }
 
-  axios.get(`http://localhost:3001/logs/presence/manual/${req.params.id}`)
+  axios.get(`http://localhost:3001/logs/${req.params.id}`)
     .then((resp) => {
       res.status(200).send(resp.data)
     })
@@ -340,7 +297,7 @@ sendMail = function (randomPassword, email) {
   const mailgun = require('mailgun-js')({ apiKey: api_key, domain: domain });
 
   const data = {
-    from: 'Presence Manager Server <flowpresencemanager@gmail.com>',
+    from: `Presence Manager Server <flowpresencemanager@gmail.com>`,
     to: `${email}`,
     subject: 'Flow Academy Regisztrációs Jelszó',
     text: `Kedves Regisztráló! Első belépéshez való belépési kódod: ${randomPassword}`
