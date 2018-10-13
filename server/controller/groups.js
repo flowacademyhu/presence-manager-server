@@ -25,7 +25,7 @@ groups.post('/', authenticate, (req, res) => {
 });
 
 
-// DELETE /logs
+// DELETE /groups
 groups.delete('/:id', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
@@ -39,9 +39,8 @@ groups.delete('/:id', authenticate, (req, res) => {
       let results = [];
 
       for (let i = 0; i < IDs.length; i++) {
-        let axiosResp = await axios.delete(`http://localhost:3001/logs/${IDs[i]}`);
         let serverResp = await User.deleteOne({_id: IDs[i]});
-        results.push([axiosResp.data, serverResp]);
+        results.push(serverResp);
       }
 
       return results;
@@ -67,7 +66,7 @@ groups.delete('/:id', authenticate, (req, res) => {
   });
 });
 
-// PATCH /logs
+// PATCH /groups
 groups.patch('/', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
@@ -89,7 +88,7 @@ groups.patch('/', authenticate, (req, res) => {
 });
 
 
-// GET /logs
+// GET /groups
 groups.get('/', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
