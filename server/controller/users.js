@@ -240,6 +240,9 @@ users.patch('/presence/edit', authenticate, (req, res) => {
       if (err.response.status === 404) {
         res.status(404).send();
       }
+      if (err.response.status === 400) {
+        res.status(400).send();
+      }
       res.status(503).send();
     });
 });
