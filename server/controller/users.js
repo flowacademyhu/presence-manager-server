@@ -12,9 +12,11 @@ const { hashRandomPassword } = require('../middleware/hash_randomPassword');
 const { authenticate } = require('../middleware/authenticate');
 const { hashPassword } = require('../middleware/hash_password');
 
+const localhost = process.env.WIFI_SERVER;
+
 // sync
 schedule.scheduleJob('*/1 * * * *', function(){
-  axios.get('http://localhost:3001/logs')
+  axios.get(`${localhost}/logs/`)
     .then((response) => {
 
       const syncData = async (response) => {
@@ -146,7 +148,7 @@ users.get('/list/actuals', authenticate, (req, res) => {
     return res.status(401).send();
   }
 
-  User.find({logs: {$elemMatch: {subjectDate: moment().format('MMMM Do YYYY')}}}).then((users) => {
+  User.find({logs: {$elemMatch: {subjectDate: moment().format('YYYY-MM-DD')}}}).then((users) => {
     let actualusers = users.map((user) => { return [user.name, user._id, user._group, user.logs[user.logs.length - 1].lastCheckIn]; });
     res.status(200).send(actualusers);
   }, (e) => {
@@ -217,7 +219,7 @@ users.patch('/presence/edit', authenticate, (req, res) => {
     update = {"logs.$.lastCheckIn": req.body.lastCheckIn};
   }
 
-  axios.patch('http://localhost:3001/logs/', {
+  axios.patch(`${localhost}/logs/`, {
     macAddress: req.body.macAddress,
     subjectDate: req.body.subjectDate,
     firstCheckIn: req.body.firstCheckIn,
@@ -245,7 +247,7 @@ users.patch('/presence/edit', authenticate, (req, res) => {
 // Manual checkIn
 users.get('/presence/manual', authenticate, (req, res) => {
 
-  axios.post('http://localhost:3001/logs/', {
+  axios.post(`${localhost}/logs/`, {
     macAddress: req.user.macAddress,
   })
     .then(() => {
@@ -256,7 +258,7 @@ users.get('/presence/manual', authenticate, (req, res) => {
           }
           if (item) {
             let index = item.logs.findIndex(obj => {
-              return obj.subjectDate === moment().format('MMMM Do YYYY')
+              return obj.subjectDate === moment().format('YYYY-MM-DD')
             });
             if (index >= 0) {
               item.addTimeSameDay(index)
@@ -282,7 +284,7 @@ users.get('/presence/manual/:id', authenticate, (req, res) => {
     return res.status(401).send();
   }
 
-  axios.get(`http://localhost:3001/logs/${req.params.id}`)
+  axios.get(`${localhost}/logs/${req.params.id}`)
     .then((resp) => {
       res.status(200).send(resp.data)
     })
