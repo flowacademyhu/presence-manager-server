@@ -111,15 +111,15 @@ UserSchema.statics.findByCredentials = function (email, password) {
 UserSchema.methods.addTimeSameDay = function (index) {
   let user = this;
 
-  user.logs[index].lastCheckIn = moment().format('MMMM Do YYYY, h:mm:ss a');
+  user.logs[index].lastCheckIn = moment().format('hh:mm:ss.SSS');
 
   return user.save();
 };
 
 UserSchema.methods.addTimeNewDay = function () {
   let user = this;
-  let time = moment().format('MMMM Do YYYY, h:mm:ss a');
-  let subjectDate = moment().format('MMMM Do YYYY');
+  let time = moment().format('hh:mm:ss.SSS');
+  let subjectDate = moment().format('YYYY-MM-DD');
 
 
   user.logs = user.logs.concat([{subjectDate: subjectDate, firstCheckIn: time}]);
