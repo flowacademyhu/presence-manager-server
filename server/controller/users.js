@@ -127,14 +127,14 @@ users.get('/:id', authenticate, (req, res) => {
 });
 
 //Read all (lvl:0)
-users.get('/list/name', authenticate, (req, res) => {
+users.get('/list/all', authenticate, (req, res) => {
   if (req.user.accessLevel !== 0) {
     return res.status(401).send();
   }
   User.find({})
     .then(users => {
       let allUsersName = users.map((user) => {
-        return [user.name, user._group, user._id]
+        return {user: user.name, _group: user._group, _id: user._id}
       });
       res.send(allUsersName);
     }, (e) => {
