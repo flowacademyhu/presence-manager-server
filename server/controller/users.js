@@ -134,7 +134,7 @@ users.get('/list/all', authenticate, (req, res) => {
   User.find({})
     .then(users => {
       let allUsersName = users.map((user) => {
-        return {user: user.name, _group: user._group, _id: user._id}
+        return {macAddress: user.macAddress, contractId: user.contractId, name: user.name, email: user.email, _group: user._group, _id: user._id, logs: user.logs}
       });
       res.send(allUsersName);
     }, (e) => {
@@ -149,7 +149,7 @@ users.get('/list/actuals', authenticate, (req, res) => {
   }
 
   User.find({logs: {$elemMatch: {subjectDate: moment().format('YYYY-MM-DD')}}}).then((users) => {
-    let actualusers = users.map((user) => { return [user.name, user._id, user._group, user.logs[user.logs.length - 1].lastCheckIn]; });
+    let actualusers = users.map((user) => { return {name: user.name, _id: user._id, _group: user._group}; });
     res.status(200).send(actualusers);
   }, (e) => {
     res.status(400).send(e);
@@ -220,13 +220,12 @@ users.patch('/presence/edit', authenticate, (req, res) => {
   }
 
   axios.patch(`${localhost}/logs/`, {
-    macAddress: req.body.macAddress,
-    subjectDate: req.body.subjectDate,
+    _id: req.body._id,
     firstCheckIn: req.body.firstCheckIn,
     lastCheckIn: req.body.lastCheckIn
   })
     .then(() => {
-      User.update({macAddress : req.body.macAddress, "logs.subjectDate": req.body.subjectDate},
+      User.update({"logs._id": req.body._id},
         {$set: update})
         .then(log => {
           if (!log) {

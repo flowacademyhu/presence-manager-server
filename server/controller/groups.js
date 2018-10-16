@@ -73,7 +73,7 @@ groups.patch('/', authenticate, (req, res) => {
   }
 
   Group.findOneAndUpdate({
-    _id: req.body._group
+    _id: req.body._id
   }, { $set: { name: req.body.name } }, { new: true, runValidators: true }).then(group => {
     if (!group) {
       return res.status(404).send();
