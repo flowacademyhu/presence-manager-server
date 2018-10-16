@@ -220,12 +220,13 @@ users.patch('/presence/edit', authenticate, (req, res) => {
   }
 
   axios.patch(`${localhost}/logs/`, {
-    _id: req.body._id,
+    macAddress: req.body.macAddress,
+    subjectDate: req.body.subjectDate,
     firstCheckIn: req.body.firstCheckIn,
     lastCheckIn: req.body.lastCheckIn
   })
     .then(() => {
-      User.update({"logs._id": req.body._id},
+      User.update({macAddress : req.body.macAddress, "logs.subjectDate": req.body.subjectDate},
         {$set: update})
         .then(log => {
           if (!log) {
