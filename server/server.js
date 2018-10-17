@@ -15,11 +15,11 @@ app.use(cors());
 const users = require('./controller/users');
 app.use('/users', users);
 
-const presences = require('./controller/presences')
-app.use('/presences', precenses);
+const groups = require('./controller/groups');
+app.use('/groups', groups);
 
 if (!module.parent) {
-    app.listen(port, () => { console.log(`Started on port ${port}`); });
-  }
-  
-  module.exports = { app };
+  app.listen(port, () => { console.log(`Started on port ${port}`); });
+}
+
+module.exports = { app };
