@@ -90,9 +90,9 @@ groups.patch('/', authenticate, (req, res) => {
 
 // GET /groups
 groups.get('/', authenticate, (req, res) => {
-  if (req.user.accessLevel !== 0) {
-    return res.status(401).send();
-  }
+  // if (req.user.accessLevel !== 2) {
+  //   return res.status(401).send();
+  // }
 
   Group.find().then((groups) => {
     res.status(200).send(groups);

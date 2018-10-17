@@ -49,6 +49,7 @@ users.post('/',[authenticate, hashRandomPassword], (req, res) => {
   let user = new User(body);
 
   user.save().then((user) => {
+    sendMail(req.body.unHashedRandomPassword, body.email);
     res.status(200).send(user);
   }).catch(e => res.status(400).send(e));
 });
@@ -61,7 +62,7 @@ users.get('/me', authenticate, (req, res) => {
       if (!user) {
         return res.status(404).send();
       }
-        let body = _.pick(user, ['name', 'email', '_group', 'logs']);
+        let body = _.pick(user, ['name', 'email', '_group', 'logs', 'macAddress']);
 
       res.status(200).send(body);
   }).catch(err => {
