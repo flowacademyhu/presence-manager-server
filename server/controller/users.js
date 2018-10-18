@@ -28,7 +28,7 @@ schedule.scheduleJob('*/1 * * * *', function(){
         }
       };
 
-      syncData(response.data).then(() => console.log(`${new Date()} - OK`)).catch(() => console.log(`${new Date()} - ERROR`))
+      syncData(response.data).catch(() => console.log(`${new Date()} - ERROR`))
     })
     .catch(() => {
       console.log(`${new Date()} - ERROR - 503`);
@@ -92,6 +92,9 @@ users.post('/login', (req, res) => {
 
 //New User
 users.patch('/newpassword',[authenticate, hashPassword], (req, res) => {
+  if (req.user.isGeneratedPassword === false) {
+    res.status(400).send();
+  }
 
   User.findOneAndUpdate({
     _id: req.user._id
@@ -118,11 +121,14 @@ users.get('/:id', authenticate, (req, res) => {
   let id = req.params.id;
 
   if (!ObjectID.isValid(id)) {
-    return res.status(404).send();
+    return res.status(400).send();
   }
 
   User.findById(id, (e, user) => {
     if (e) return res.status(500).send(e);
+    if (!user) {
+      res.status(404).send();
+    }
     return res.status(200).send(user)
   });
 });
@@ -311,9 +317,9 @@ sendMail = function (randomPassword, email) {
 
   mailgun.messages().send(data, function (error, body) {
     if (error) {
-      console.log(error);
+      // console.log(error);
     }
-    console.log(body);
+    // console.log(body);
   });
 };
 

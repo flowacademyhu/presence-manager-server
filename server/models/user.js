@@ -4,6 +4,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const moment = require('moment');
 
+mongoose.set('useCreateIndex', true);
+mongoose.set('useFindAndModify', false);
+
 const UserSchema = new mongoose.Schema({
   name: {
     type: String,
