@@ -34,5 +34,10 @@
     "nodemon": "^1.18.4",
     "randomstring": "^1.1.5",
     "validator": "^10.8.0"
+  },
+  "devDependencies": {
+    "expect": "^23.6.0",
+    "mocha": "^5.2.0",
+    "supertest": "^3.3.0"
   }
 }

@@ -1,7 +1,6 @@
 const express = require('express');
 const groups = express.Router();
 const _ = require('lodash');
-const axios = require('axios');
 
 const { Group } = require('../models/group');
 const { User } = require('../models/user');
